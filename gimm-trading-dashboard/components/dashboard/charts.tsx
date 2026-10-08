@@ -10,7 +10,7 @@ import { EChart } from '@/components/charts/echart';
 import { EquityChart } from '@/components/charts/equity-chart';
 import { EmptyState, Panel } from './primitives';
 
-export const colors = { profit: '#6cddb1', loss: '#f4899b', violet: '#b5a2ff', muted: '#69758a', grid: '#ffffff06', axis: '#778399' };
+export const colors = { profit: '#00e676', loss: '#ff405c', violet: '#9985ff', muted: '#69758a', grid: '#ffffff06', axis: '#778399' };
 const tooltip = { backgroundColor: '#1c212d', borderColor: '#323a4b', borderWidth: 1, textStyle: { color: '#dce4ee', fontSize: 11 }, padding: [10, 13], extraCssText: 'border-radius:9px;box-shadow:0 8px 25px #0005', confine: true };
 const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
 const xAxis = { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: colors.axis, fontSize: 9, hideOverlap: true } };
@@ -26,7 +26,7 @@ export const EquityPanel = memo(function EquityPanel({ performance, balanceAvail
     tooltip: { trigger: 'axis', ...tooltip, valueFormatter: value => money(Number(value)) },
     xAxis: { type: 'category', data: drawdown.map(point => point.time), ...xAxis, axisLabel: { ...xAxis.axisLabel, formatter: (value: string) => new Date(value + 'T12:00:00Z').toLocaleDateString('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }) } },
     yAxis: { type: 'value', ...yAxis },
-    series: [{ type: 'line', data: drawdown.map(point => point.value), symbol: 'none', lineStyle: { color: colors.loss, width: 2 }, areaStyle: { color: '#f4899b15' } }],
+    series: [{ type: 'line', data: drawdown.map(point => point.value), symbol: 'none', lineStyle: { color: colors.loss, width: 2 }, areaStyle: { color: '#ff405c15' } }],
   };
   return <Panel title="Equity performance" subtitle="A clearer view of your trading journey" aside={<div className="segmented" aria-label="Equity chart mode">{(['pnl', 'both', 'drawdown'] as const).map(item => <button type="button" key={item} aria-pressed={mode === item} disabled={item === 'both' && !balanceAvailable} title={item === 'both' && !balanceAvailable ? 'Choose a single account to view its recorded balance' : undefined} className={mode === item ? 'selected' : ''} onClick={() => setMode(item)}>{item === 'pnl' ? 'P&L' : item === 'both' ? 'Balance' : 'Drawdown'}</button>)}</div>} footer={<><span>{mode === 'both' ? 'Separate scales · balance includes transfers' : mode === 'drawdown' ? 'Drawdown from cumulative realized P&L' : 'Cumulative realized P&L · cash transfers excluded'}</span><span>{performance.cumulative.length} trading days</span></>}>
     <div className="panel-content" style={{ paddingBottom: 4 }}><div className={`chart-total ${mode === 'drawdown' || performance.netPnl < 0 ? 'negative' : ''}`}>{money(mode === 'drawdown' ? -performance.maxDrawdown : performance.netPnl)}</div><div className="legend"><span className="legend-item"><i className="legend-dot" style={{ color: mode === 'drawdown' ? colors.loss : colors.profit }}/>{mode === 'drawdown' ? 'Realized drawdown' : 'Net trading P&L'}</span>{mode === 'both' && <span className="legend-item"><i className="legend-dot" style={{ color: colors.violet }}/>Recorded account balance</span>}</div></div>

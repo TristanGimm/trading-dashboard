@@ -54,13 +54,55 @@ try {
   await page.getByRole('button', { name: 'Passwort verbergen' }).click();
   await page.getByRole('button', { name: 'Zum Dashboard' }).click();
   await page.waitForURL(/\/dashboard/);
-  await page.getByRole('heading', { name: 'Your trading, in focus.' }).waitFor();
+  await page.getByRole('heading', { name: 'Master Trading Dashboard' }).waitFor();
   await chartsReady();
   assert.ok(await page.locator('canvas').count() >= 4, 'Expected rendered charts');
   await noOverflow(1440);
   await screenshot('overview-desktop');
   await page.screenshot({ path: resolve(artifacts, 'overview-desktop-viewport.png') });
   check('desktop login, password toggle, authenticated dashboard and rendered charts');
+  await page.getByRole('button', { name: 'Switch to light mode' }).click();
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('h1')).color === 'rgb(32, 33, 57)', undefined, { timeout: 5000 });
+  assert.equal(await page.locator('h1').evaluate(element => getComputedStyle(element).color), 'rgb(32, 33, 57)', 'Light-mode headings must remain readable');
+  await screenshot('overview-light');
+  await page.reload();
+  await page.getByRole('button', { name: 'Switch to dark mode' }).waitFor();
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
+  await chartsReady();
+  await page.getByRole('button', { name: 'Switch to dark mode' }).click();
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
+  check('light and dark modes, rendered charts and persisted theme after reload');
+  await page.getByRole('heading', { name: 'Traders Skill Level', exact: true }).waitFor();
+  assert.ok(await page.locator('.skill-radar').getAttribute('aria-label'));
+  assert.equal(await page.getByText('NINJA RANK', { exact: true }).count(), 0);
+  await page.getByText('How your score works', { exact: true }).click();
+  await page.getByText('How your score works', { exact: true }).click();
+  await page.getByRole('button', { name: 'Prepare session', exact: true }).click();
+  await page.getByLabel('Review today’s market context', { exact: true }).check();
+  await page.getByLabel('Session focus', { exact: true }).fill('Wait for my A+ setup');
+  await page.reload();
+  await page.getByRole('button', { name: 'Prepare session', exact: true }).click();
+  assert.equal(await page.getByLabel('Review today’s market context', { exact: true }).isChecked(), true);
+  assert.equal(await page.getByLabel('Session focus', { exact: true }).inputValue(), 'Wait for my A+ setup');
+  await page.getByRole('button', { name: 'Close plan', exact: true }).click();
+  check('0–100 skill score and daily preparation saved across reload');
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Dashboard outcome', exact: true }).selectOption('loss');
+  assert.ok((await page.locator('.metric-value').first().textContent()).startsWith('-'));
+  assert.equal(await page.locator('.skill-rank>strong').textContent(), '0/ 100');
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Dashboard instrument', exact: true }).selectOption('XAU/USD');
+  for (const pair of await page.locator('tbody .pair-cell').allTextContents()) assert.ok(pair.includes('XAU/USD'));
+  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await page.getByRole('button', { name: 'Filters', exact: true }).click();
+  await page.locator('[aria-label="Calendar values"]').getByRole('button', { name: 'Win rate', exact: true }).click();
+  assert.ok((await page.locator('.calendar-cell.has-trades strong').first().textContent()).includes('%'));
+  await page.locator('[aria-label="Calendar values"]').getByRole('button', { name: 'Net P&L', exact: true }).click();
+  assert.ok(await page.locator('.calendar-week').count() >= 4);
+  check('dashboard filters update score, metrics, recent trades and calendar values');
+
+
 
   await page.getByRole('button', { name: 'Balance', exact: true }).click();
   await page.getByRole('button', { name: 'Drawdown', exact: true }).click();
@@ -125,7 +167,7 @@ try {
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Overview', exact: true }).click();
-    await page.getByRole('heading', { name: 'Your trading, in focus.' }).waitFor();
+    await page.getByRole('heading', { name: 'Master Trading Dashboard' }).waitFor();
     await chartsReady(); await noOverflow(width);
     if (width === 390) await screenshot('overview-mobile');
     await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Journal', exact: true }).click();
@@ -141,7 +183,7 @@ try {
   await page.waitForURL(/period=30d/);
   assert.ok(page.url().includes('view=journal'));
   await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Overview', exact: true }).click();
-  await page.getByRole('heading', { name: 'Your trading, in focus.' }).waitFor();
+  await page.getByRole('heading', { name: 'Master Trading Dashboard' }).waitFor();
   await page.getByRole('combobox', { name: 'Account filter' }).selectOption('all');
   await page.waitForURL(/account=all/);
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Balance' && button.disabled));

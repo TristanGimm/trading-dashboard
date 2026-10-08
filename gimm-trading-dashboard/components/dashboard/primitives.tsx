@@ -14,7 +14,7 @@ export function EmptyState({ title = 'No trades in this view', description = 'Tr
   return <div className="empty-state"><span className="empty-icon"><Database size={20}/></span><h3>{title}</h3><p>{description}</p>{action}</div>;
 }
 
-export function Sparkline({ values, color = '#6cddb1' }: { values: number[]; color?: string }) {
+export function Sparkline({ values, color = '#00e676' }: { values: number[]; color?: string }) {
   if (values.length < 2) return <div className="mini-progress"><span style={{ background: color, width: values.length ? '8%' : '0%' }}/></div>;
   const lower = values.reduce((minimum, value) => Math.min(minimum, value), Infinity), span = values.reduce((maximum, value) => Math.max(maximum, value), -Infinity) - lower || 1;
   const points = values.map((value, index) => `${index / (values.length - 1) * 160},${23 - (value - lower) / span * 21}`).join(' ');

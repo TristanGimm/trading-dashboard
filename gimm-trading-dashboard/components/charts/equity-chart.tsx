@@ -27,6 +27,12 @@ export function EquityChart({ equity, balance }: { equity: BalancePoint[]; balan
     let observer: ResizeObserver | undefined;
     let frame = 0;
     setState('loading');
+    const repaint = () => {
+      const light = document.documentElement.dataset.theme === 'light';
+      chart.current?.applyOptions({ layout: { textColor: light ? '#60677d' : '#9298ab' }, grid: { horzLines: { color: light ? '#25234912' : '#ffffff06' } } });
+      pnl.current?.applyOptions({ lineColor: light ? '#008f48' : '#00e676', topColor: light ? '#008f4829' : '#00e67629' });
+    };
+    window.addEventListener('gimm-theme-change', repaint);
     (async () => {
       const { createChart, AreaSeries, LineSeries, ColorType } = await import('lightweight-charts');
       if (disposed || !element.current) return;
@@ -39,15 +45,16 @@ export function EquityChart({ equity, balance }: { equity: BalancePoint[]; balan
         localization: { priceFormatter: (value: number) => new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value) },
       });
       chart.current = instance;
-      pnl.current = instance.addSeries(AreaSeries, { priceScaleId: 'right', lineColor: '#6cddb1', topColor: 'rgba(108,221,177,.18)', bottomColor: 'rgba(108,221,177,.005)', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
-      account.current = instance.addSeries(LineSeries, { priceScaleId: 'left', color: '#b5a2ff', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
+      pnl.current = instance.addSeries(AreaSeries, { priceScaleId: 'right', lineColor: '#00e676', topColor: 'rgba(0,230,118,.18)', bottomColor: 'rgba(0,230,118,.005)', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
+      account.current = instance.addSeries(LineSeries, { priceScaleId: 'left', color: '#9985ff', lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
       setSeries(instance, pnl.current, account.current, latest.current.equity, latest.current.balance);
       instance.timeScale().fitContent();
       observer = new ResizeObserver(([entry]) => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => chart.current?.applyOptions({ width: entry.contentRect.width })); });
       observer.observe(element.current);
+      repaint();
       setState('ready');
     })().catch(() => { if (!disposed) setState('error'); });
-    return () => { disposed = true; observer?.disconnect(); cancelAnimationFrame(frame); chart.current?.remove(); chart.current = null; pnl.current = null; account.current = null; };
+    return () => { window.removeEventListener('gimm-theme-change', repaint); disposed = true; observer?.disconnect(); cancelAnimationFrame(frame); chart.current?.remove(); chart.current = null; pnl.current = null; account.current = null; };
   }, [hasData]);
 
   useEffect(() => {

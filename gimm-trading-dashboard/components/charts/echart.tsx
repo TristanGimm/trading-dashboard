@@ -8,6 +8,7 @@ export function EChart({ options, height = 280, label }: { options: EChartsOptio
   const element = useRef<HTMLDivElement>(null);
   const chart = useRef<ECharts | null>(null);
   const latestOptions = useRef(options);
+  const updateChart = useRef<(() => void) | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   latestOptions.current = options;
 
@@ -15,7 +16,17 @@ export function EChart({ options, height = 280, label }: { options: EChartsOptio
     let disposed = false;
     let observer: ResizeObserver | undefined;
     let frame = 0;
-    const apply = (config: EChartsOption) => ({ ...config, animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches, aria: { enabled: true } });
+    const recolor = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(recolor);
+      if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, recolor(item)]));
+      if (document.documentElement.dataset.theme !== 'light' || typeof value !== 'string') return value;
+      const palette: Record<string, string> = { '#00e676': '#008f48', '#ff405c': '#dc183a', '#ffffff06': '#25234912', '#e5ebf1': '#202139', '#778399': '#60677d', '#acb5c6': '#60677d', '#a3aec0': '#60677d', '#1c212d': '#ffffff', '#dce4ee': '#202139', '#323a4b': '#d9dced' };
+      return palette[value] ?? value;
+    };
+    const apply = (config: EChartsOption) => ({ ...(recolor(config) as EChartsOption), animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches, aria: { enabled: true } });
+    const repaint = () => chart.current?.setOption(apply(latestOptions.current), { notMerge: true });
+    updateChart.current = repaint;
+    window.addEventListener('gimm-theme-change', repaint);
     (async () => {
       const echarts = await import('@/lib/echarts');
       if (disposed || !element.current) return;
@@ -25,11 +36,11 @@ export function EChart({ options, height = 280, label }: { options: EChartsOptio
       observer.observe(element.current);
       setState('ready');
     })().catch(() => { if (!disposed) setState('error'); });
-    return () => { disposed = true; observer?.disconnect(); cancelAnimationFrame(frame); chart.current?.dispose(); chart.current = null; };
+    return () => { updateChart.current = null; window.removeEventListener('gimm-theme-change', repaint); disposed = true; observer?.disconnect(); cancelAnimationFrame(frame); chart.current?.dispose(); chart.current = null; };
   }, []);
 
   useEffect(() => {
-    chart.current?.setOption({ ...options, animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches, aria: { enabled: true } }, { notMerge: true });
+    updateChart.current?.();
   }, [options]);
 
   return <div style={{ height, position: 'relative', minWidth: 0 }} role="img" aria-label={label} aria-busy={state === 'loading'}>
