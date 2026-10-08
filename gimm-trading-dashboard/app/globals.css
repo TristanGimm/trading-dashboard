@@ -1,0 +1,10 @@
+@import "tailwindcss";
+:root{color-scheme:dark;--background:#090e18;--foreground:#e6e9f2;--surface:#101725;--line:#233046;--muted:#8390a6;--green:#39d9ac;--red:#ff6b83;--purple:#8a7bff}
+@theme inline{--color-background:var(--background);--color-foreground:var(--foreground);--color-accent:#8879ff;--color-positive:#39d9ac;--color-negative:#ff6b83}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{background:var(--background);color:var(--foreground);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-width:320px}
+.surface{background:linear-gradient(130deg,#131b2b,#0e1523)}
+.bg-mesh{background:radial-gradient(ellipse 580px 300px at 75% -90px,rgba(88,77,178,.24),transparent 80%),radial-gradient(ellipse 380px 300px at 12% 30%,rgba(26,112,135,.075),transparent 80%),#090e18}
+.inner-border{box-shadow:inset 0 1px 0 rgba(255,255,255,.055)}
+.chart-tooltip{box-shadow:0 10px 40px rgba(0,0,0,.4)}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#29334a;border-radius:5px}::-webkit-scrollbar-track{background:transparent}
+::selection{background:#5140ae;color:#fff}

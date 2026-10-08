@@ -1,0 +1,12 @@
+# Append this block to /root/gimmholding-credentials/Caddyfile
+# Generate a real bcrypt hash first:
+# docker exec -it gimmholding-credentials-caddy-1 caddy hash-password
+# Replace REPLACE_WITH_BCRYPT_HASH before validating or reloading Caddy.
+
+dashboard.gimmholding.com {
+    import security_headers
+    basic_auth {
+        trader REPLACE_WITH_BCRYPT_HASH
+    }
+    reverse_proxy trading-web:3000
+}
