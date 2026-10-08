@@ -41,3 +41,15 @@ All analytics are calculated from the actual trading journal data.
 The Notion integration is **read-only**. My original trading data obviously remains private.
 
 The dashboard is designed for private, HTTPS-protected access on a self-hosted server. PostgreSQL and the synchronization worker are not publicly exposed.
+
+## Login and local checks
+
+The dashboard now requires its own private login at `/login` and redirects to `/dashboard` after authentication. Configure your username, password hash and session secret using the [authentication setup guide](docs/authentication.md). No default credentials are provided, and missing configuration keeps the dashboard locked.
+
+Run `npm ci`, `npm run typecheck`, `npm test` and `npm run build`. The standalone production login flow can then be checked using `npm run test:smoke`, with generated test credentials and no connection to your trading database or Notion account.
+
+## Modern trading workspace
+
+The dashboard includes an overview, a searchable trade journal with CSV export and trade details, an interactive P&L calendar, and setup/session/timing analytics. All views share account and period filters, with mobile navigation and reduced-motion support.
+
+Run `npm run preview` for an isolated local demo with synthetic data and no `.env`, PostgreSQL or Notion access. See the [preview and browser-test guide](docs/local-preview.md) and the [deployment preparation](docs/deployment-checklist.md).

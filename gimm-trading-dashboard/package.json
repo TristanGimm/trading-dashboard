@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start --hostname 0.0.0.0",
     "worker": "tsx scripts/worker.ts",
     "sync:once": "tsx scripts/worker.ts --once",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "auth:hash": "node --experimental-strip-types scripts/hash-password.ts",
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node --experimental-strip-types scripts/smoke-auth.ts",
+    "preview": "node --experimental-strip-types scripts/preview.ts",
+    "test:browser": "node scripts/browser-check.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
@@ -33,10 +37,11 @@
     "@types/react-dom": "^19.2.0",
     "tailwindcss": "^4.1.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "playwright": "1.64.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.18.0"
   },
   "type": "module"
 }

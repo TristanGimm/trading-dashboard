@@ -1,7 +1,14 @@
 node_modules
 .next
 .env
+.env.*
 .git
 *.zip
 README.md
 *.tsbuildinfo
+artifacts
+.npmrc
+.aws
+.ssh
+.codex
+.agents

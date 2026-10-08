@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import type { Trade, SyncStatus } from './types';
+import { buildTradeWhere, type TradeFilter } from './trade-query';
 
 const globalDb = globalThis as unknown as {__tradingPool?:Pool};
 export function getPool(): Pool {
@@ -13,7 +14,11 @@ export function getPool(): Pool {
       max:8,
       idleTimeoutMillis:30000,
       connectionTimeoutMillis:5000,
+      statement_timeout:10000,
+      query_timeout:15000,
+      options:process.env.DB_READ_ONLY==='true'?'-c default_transaction_read_only=on':undefined,
     });
+    globalDb.__tradingPool.on('error', () => console.error('An idle PostgreSQL connection failed.'));
   }
   return globalDb.__tradingPool;
 }
@@ -58,9 +63,10 @@ export async function initSchema() {await getPool().query(schema);}
 
 const selectSql=`SELECT id,trade_id,trade_number,account,date_time,day_label,pair,position,net_eur,account_balance,
  r_multiple,setup,tf_type,algorithm,session_time,liquidity_sweep,dxy,delta,fractal_shift,last_edited_time
- FROM trades ORDER BY date_time ASC NULLS LAST, trade_number ASC NULLS LAST, id ASC`;
-export async function listTrades(): Promise<Trade[]> {
-  const r=await getPool().query(selectSql);
+ FROM trades`;
+export async function listTrades(filter:TradeFilter={}): Promise<Trade[]> {
+  const where=buildTradeWhere(filter);
+  const r=await getPool().query(selectSql+where.sql+' ORDER BY date_time ASC NULLS LAST, trade_number ASC NULLS LAST, id ASC',where.values);
   return r.rows.map(x=>({
     id:x.id,tradeId:x.trade_id,tradeNumber:x.trade_number,account:x.account||[],
     dateTime:x.date_time?.toISOString()??null,day:x.day_label,pair:x.pair,position:x.position,
@@ -73,5 +79,5 @@ export async function listTrades(): Promise<Trade[]> {
 export async function getSyncStatus(): Promise<SyncStatus|null> {
   const r=await getPool().query('SELECT last_synced_at,last_error,last_count,state FROM sync_status WHERE id=1');
   if(!r.rows[0])return null;
-  const s=r.rows[0];return {lastSyncedAt:s.last_synced_at?.toISOString()??null,lastError:s.last_error,lastCount:s.last_count,state:s.state};
+  const s=r.rows[0];return {lastSyncedAt:s.last_synced_at?.toISOString()??null,lastError:s.last_error?'Synchronization needs attention. Check the worker logs.':null,lastCount:s.last_count,state:s.state};
 }

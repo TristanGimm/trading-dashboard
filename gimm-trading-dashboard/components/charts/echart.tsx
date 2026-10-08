@@ -1,16 +1,40 @@
 'use client';
-import { useEffect,useRef } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 import type { EChartsOption } from 'echarts';
-export function EChart({options,height=360,label}:{options:EChartsOption;height?:number;label:string}){
- const el=useRef<HTMLDivElement>(null);
- useEffect(()=>{
-  if(!el.current)return;let disposed=false;let dispose:()=>void=()=>{};
-  (async()=>{
-   const e=await import('echarts');if(disposed||!el.current)return;
-   const chart=e.init(el.current,undefined,{renderer:'canvas'});chart.setOption(options,{notMerge:true});
-   const ro=new ResizeObserver(()=>chart.resize());ro.observe(el.current);dispose=()=>{ro.disconnect();chart.dispose();};
-  })().catch(console.error);
-  return()=>{disposed=true;dispose();};
- },[options]);
- return <div ref={el} style={{height}} className="w-full" role="img" aria-label={label}/>;
+import type { ECharts } from 'echarts/core';
+
+export function EChart({ options, height = 280, label }: { options: EChartsOption; height?: number; label: string }) {
+  const element = useRef<HTMLDivElement>(null);
+  const chart = useRef<ECharts | null>(null);
+  const latestOptions = useRef(options);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  latestOptions.current = options;
+
+  useEffect(() => {
+    let disposed = false;
+    let observer: ResizeObserver | undefined;
+    let frame = 0;
+    const apply = (config: EChartsOption) => ({ ...config, animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches, aria: { enabled: true } });
+    (async () => {
+      const echarts = await import('@/lib/echarts');
+      if (disposed || !element.current) return;
+      chart.current = echarts.init(element.current, undefined, { renderer: 'canvas' });
+      chart.current.setOption(apply(latestOptions.current), { notMerge: true });
+      observer = new ResizeObserver(() => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => chart.current?.resize()); });
+      observer.observe(element.current);
+      setState('ready');
+    })().catch(() => { if (!disposed) setState('error'); });
+    return () => { disposed = true; observer?.disconnect(); cancelAnimationFrame(frame); chart.current?.dispose(); chart.current = null; };
+  }, []);
+
+  useEffect(() => {
+    chart.current?.setOption({ ...options, animation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches, aria: { enabled: true } }, { notMerge: true });
+  }, [options]);
+
+  return <div style={{ height, position: 'relative', minWidth: 0 }} role="img" aria-label={label} aria-busy={state === 'loading'}>
+    <div ref={element} style={{ height: '100%', width: '100%' }}/>
+    {state === 'loading' && <div className="chart-skeleton" aria-hidden="true"/>}
+    {state === 'error' && <p className="absolute inset-0 grid place-items-center text-xs text-slate-400">Chart unavailable. Your metrics and journal remain available.</p>}
+  </div>;
 }

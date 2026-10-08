@@ -31,3 +31,27 @@ test('Notion mapping refuses a local timestamp with no offset',()=>{
  const p=page('109');p.properties.Time!.date={start:'2026-09-04T10:00:00'};
  assert.throws(()=>mapNotionTrade(p),/without offset/);
 });
+test('mapping rejects malformed fields and impossible date-only values',()=>{
+ const p=page('109');p.properties.Time!.date={start:'2026-02-30'};
+ assert.throws(()=>mapNotionTrade(p),/Invalid date/);
+ const bad=page('110');bad.properties['Net €'].number='wrong' as unknown as number;
+ assert.throws(()=>mapNotionTrade(bad),/Malformed Notion page/);
+ const huge=mapNotionTrade(page('99999999999999999999'));
+ assert.equal(huge.tradeNumber,null);
+});
+function response(data:unknown):Response {return {ok:true,status:200,json:async()=>data} as Response;}
+test('pagination refuses missing/repeated cursors, duplicate ids and malformed pages',async()=>{
+ const config={token:'local-fake-token',dataSourceId:'local-fake-source'};
+ const fake=(data:unknown)=>(async()=>response(data)) as typeof fetch;
+ await assert.rejects(fetchAllNotionTrades(config,fake({object:'list',results:[],has_more:true,next_cursor:null})),/no next_cursor/);
+ await assert.rejects(fetchAllNotionTrades(config,fake({object:'list',results:[],has_more:true,next_cursor:'same'})),/Repeated/);
+ await assert.rejects(fetchAllNotionTrades(config,fake({object:'list',results:[page('1'),page('1')],has_more:false,next_cursor:null})),/Duplicate/);
+ await assert.rejects(fetchAllNotionTrades(config,fake({object:'list',results:[{object:'page',id:'1'}],has_more:false,next_cursor:null})),/Malformed/);
+});
+test('pagination stops when has_more is false and skips archived pages',async()=>{
+ let count=0;
+ const archived={...page('1'),archived:true};
+ const fake=(async()=>{count++;return response({object:'list',results:[archived,page('2')],has_more:false,next_cursor:'unused'});}) as typeof fetch;
+ const trades=await fetchAllNotionTrades({token:'local-fake-token',dataSourceId:'local-fake-source'},fake);
+ assert.equal(count,1);assert.deepEqual(trades.map(t=>t.id),['2']);
+});

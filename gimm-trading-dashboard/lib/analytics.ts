@@ -9,7 +9,10 @@ export function filterTrades(trades:Trade[],account='Forwardtesting',period='all
   const start=allowedPeriod.has(period)&&period!=='all'?now.getTime()-days[period]*86400000:undefined;
   return trades.filter(t=>{
     if(account!=='all'&&!t.account.includes(account))return false;
-    if(start!==undefined&&(!t.dateTime||new Date(t.dateTime).getTime()<start))return false;
+    if(start!==undefined){
+      const timestamp=t.dateTime?Date.parse(t.dateTime):NaN;
+      if(!Number.isFinite(timestamp)||timestamp<start||timestamp>now.getTime())return false;
+    }
     return true;
   });
 }

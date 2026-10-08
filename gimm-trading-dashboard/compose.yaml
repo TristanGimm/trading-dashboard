@@ -26,6 +26,11 @@ services:
     environment:
       PGHOST: db
       PGPORT: 5432
+      DB_READ_ONLY: 'false'
+      # env_file also contains web settings; do not expose its auth secrets to the worker.
+      AUTH_USERNAME: ''
+      AUTH_PASSWORD_HASH: ''
+      AUTH_SECRET: ''
     depends_on:
       db:
         condition: service_healthy
@@ -43,10 +48,14 @@ services:
       DB_USER: ${DB_USER:-trading}
       DB_NAME: ${DB_NAME:-trading}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+      AUTH_USERNAME: ${AUTH_USERNAME:-}
+      AUTH_PASSWORD_HASH: ${AUTH_PASSWORD_HASH:-}
+      AUTH_SECRET: ${AUTH_SECRET:-}
       DASHBOARD_TIMEZONE: ${DASHBOARD_TIMEZONE:-Europe/Berlin}
       HOSTNAME: 0.0.0.0
       PORT: 3000
       NODE_ENV: production
+      DB_READ_ONLY: 'true'
     expose:
       - "3000"
     depends_on:

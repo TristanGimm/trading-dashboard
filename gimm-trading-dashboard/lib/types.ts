@@ -34,4 +34,5 @@ export type Performance = {
   monthly:TimePerformance[];
 };
 export type SyncStatus = {lastSyncedAt:string|null; lastError:string|null; lastCount:number; state:string};
-export type DashboardPayload = {performance:Performance; trades:Trade[]; status:SyncStatus|null; lastTradeDate:string|null; selectedAccount:string; selectedPeriod:string};
+export type DashboardView = 'overview' | 'journal' | 'calendar' | 'analytics';
+export type DashboardPayload = {view:DashboardView; demo:boolean; today:string; generatedAt:string; timeZone:string; performance:Performance; trades:Trade[]; status:SyncStatus|null; lastTradeDate:string|null; selectedAccount:string; selectedPeriod:string};

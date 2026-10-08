@@ -36,3 +36,8 @@ test('period/account filtering never uses missing date as within a time window',
 test('outcome uses recorded net including break even',()=>{
  assert.equal(getOutcome(0),'breakeven');assert.equal(getOutcome(-0.8),'loss');assert.equal(getOutcome(80),'win');
 });
+test('time windows reject future and invalid dates and include exact boundaries',()=>{
+ const now=new Date('2026-10-08T12:00:00Z');
+ const ts=[mock('1',1,{dateTime:'2099-01-01T00:00:00Z'}),mock('2',1,{dateTime:'invalid'}),mock('3',1,{dateTime:now.toISOString()}),mock('4',1,{dateTime:'2026-09-08T12:00:00Z'}),mock('5',1,{dateTime:'2026-09-08T11:59:59Z'})];
+ assert.deepEqual(filterTrades(ts,'Forwardtesting','30d',now).map(t=>t.id),['3','4']);
+});

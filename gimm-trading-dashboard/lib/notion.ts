@@ -1,4 +1,5 @@
 import type { Trade } from './types';
+import { z } from 'zod';
 
 export type NotionRichText = {plain_text?:string; text?:{content?:string}};
 export type NotionProperty = {
@@ -8,6 +9,18 @@ export type NotionProperty = {
 };
 export type NotionPage = {object:'page';id:string;created_time?:string;last_edited_time?:string;archived?:boolean;in_trash?:boolean;properties:Record<string,NotionProperty>};
 export type NotionResult = {object:'list';results:NotionPage[];has_more:boolean;next_cursor:string|null};
+
+const richTextSchema=z.object({plain_text:z.string().optional(),text:z.object({content:z.string().optional()}).optional()});
+const propertySchema=z.object({
+  type:z.string().optional(),title:z.array(richTextSchema).optional(),number:z.number().nullable().optional(),
+  select:z.object({name:z.string()}).nullable().optional(),multi_select:z.array(z.object({name:z.string()})).optional(),
+  checkbox:z.boolean().optional(),date:z.object({start:z.string(),end:z.string().nullable().optional(),time_zone:z.string().nullable().optional()}).nullable().optional(),
+});
+const pageSchema=z.object({
+  object:z.literal('page'),id:z.string().min(1),created_time:z.string().optional(),last_edited_time:z.iso.datetime({offset:true}).optional(),
+  archived:z.boolean().optional(),in_trash:z.boolean().optional(),properties:z.record(z.string(),propertySchema),
+});
+const resultSchema=z.object({object:z.literal('list'),results:z.array(pageSchema),has_more:z.boolean(),next_cursor:z.string().min(1).nullable()});
 
 const props=(p:NotionPage,name:string)=>p.properties?.[name];
 const multi=(p:NotionPage,name:string)=>props(p,name)?.multi_select?.map(v=>v.name)||[];
@@ -20,14 +33,26 @@ const string=(p:NotionPage,name:string)=>props(p,name)?.title?.map(s=>s.plain_te
 function notionTime(p:NotionPage):string|null {
   const d=props(p,'Time')?.date;
   if(!d?.start)return null;
-  if(/^\d{4}-\d{2}-\d{2}$/.test(d.start))return d.start+'T00:00:00Z';
-  if(/[zZ]|[+-]\d{2}:?\d{2}$/.test(d.start))return new Date(d.start).toISOString();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(d.start)){
+    const timestamp=new Date(d.start+'T00:00:00Z');
+    if(!Number.isFinite(timestamp.getTime())||timestamp.toISOString().slice(0,10)!==d.start)throw new Error(`Invalid date in Notion page ${p.id}`);
+    return d.start+'T00:00:00Z';
+  }
+  if(/[zZ]$|[+-]\d{2}:?\d{2}$/.test(d.start)){
+    const timestamp=new Date(d.start);
+    if(!Number.isFinite(timestamp.getTime()))throw new Error(`Invalid timestamp in Notion page ${p.id}`);
+    return timestamp.toISOString();
+  }
   // Notion may supply a local date-time with its own time_zone. Do not assume UTC silently.
   throw new Error(`Time without offset in Notion page ${p.id}: ${d.start}`);
 }
-export function mapNotionTrade(page:NotionPage):Trade {
+export function mapNotionTrade(input:NotionPage):Trade {
+  const parsed=pageSchema.safeParse(input);
+  if(!parsed.success)throw new Error('Malformed Notion page');
+  const page=parsed.data;
   const tradeId=string(page,'Trade ID');
-  const tradeNumber=/^\d+$/.test(tradeId)?Number(tradeId):null;
+  const numericId=/^\d+$/.test(tradeId)?Number(tradeId):NaN;
+  const tradeNumber=Number.isSafeInteger(numericId)&&numericId<=2147483647?numericId:null;
   return {
     id:page.id,tradeId,tradeNumber,account:multi(page,'Account'),dateTime:notionTime(page),day:select(page,'Day'),
     pair:select(page,'Pair'),position:select(page,'Position'),netEur:num(page,'Net €'),accountBalance:num(page,'Account Balance'),rMultiple:num(page,'R'),
@@ -51,12 +76,13 @@ export async function fetchAllNotionTrades(config:{token:string;dataSourceId:str
       break;
     }
     if(!response)throw new Error('No Notion response');
-    if(!response.ok){const detail=(await response.text()).slice(0,300);throw new Error(`Notion API HTTP ${response.status}: ${detail}`);}
-    const data=await response.json() as NotionResult;
-    if(!Array.isArray(data.results)||typeof data.has_more!=='boolean')throw new Error('Malformed Notion API response');
+    if(!response.ok)throw new Error(`Notion API HTTP ${response.status}`);
+    const parsed=resultSchema.safeParse(await response.json());
+    if(!parsed.success)throw new Error('Malformed Notion API response');
+    const data=parsed.data;
     for(const item of data.results){if(item.object==='page'&&!item.archived&&!item.in_trash)found.push(mapNotionTrade(item));}
     if(data.has_more&&!data.next_cursor)throw new Error('Notion response has_more but no next_cursor');
-    cursor=data.next_cursor??undefined;
+    cursor=data.has_more?data.next_cursor??undefined:undefined;
     if(cursor){if(seenCursors.has(cursor))throw new Error('Repeated Notion pagination cursor');seenCursors.add(cursor);}
   }while(cursor);
   const unique=new Set(found.map(x=>x.id));if(unique.size!==found.length)throw new Error('Duplicate Notion page IDs');
